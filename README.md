@@ -70,36 +70,30 @@ This breakthrough is driven by an innovative data engine that has automatically 
 - PyTorch 2.7 or higher
 - CUDA-compatible GPU with CUDA 12.6 or higher
 
-1. **Create a new Conda environment:**
-
-```bash
-conda create -n sam3 python=3.12
-conda deactivate
-conda activate sam3
-```
-
-2. **Install PyTorch with CUDA support:**
-
-```bash
-pip install torch==2.10.0 torchvision --index-url https://download.pytorch.org/whl/cu128
-```
-
-3. **Clone the repository and install the package:**
+1. **Clone the repository:**
 
 ```bash
 git clone https://github.com/facebookresearch/sam3.git
 cd sam3
-pip install -e .
 ```
 
-4. **Install additional dependencies for example notebooks or development:**
+2. **Install the package with uv:**
 
 ```bash
+# Base install (includes PyTorch with CUDA 12.8 support)
+uv sync
+
 # For running example notebooks
-pip install -e ".[notebooks]"
+uv sync --extra notebooks
 
 # For development
-pip install -e ".[train,dev]"
+uv sync --extra dev --extra train
+```
+
+3. **Activate the virtual environment:**
+
+```bash
+source .venv/bin/activate
 ```
 
 5. **Optional dependencies for faster inference**
@@ -188,10 +182,10 @@ To run the Jupyter notebook examples:
 
 ```bash
 # Make sure you have the notebooks dependencies installed
-pip install -e ".[notebooks]"
+uv sync --extra notebooks
 
 # Start Jupyter notebook
-jupyter notebook examples/sam3_image_predictor_example.ipynb
+uv run jupyter notebook examples/sam3_image_predictor_example.ipynb
 ```
 
 ## Model
@@ -360,7 +354,7 @@ We release 2 image benchmarks, [SA-Co/Gold](scripts/eval/gold/README.md) and
 To set up the development environment:
 
 ```bash
-pip install -e ".[dev,train]"
+uv sync --extra dev --extra train
 ```
 
 To format the code:

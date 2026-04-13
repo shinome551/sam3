@@ -14,10 +14,11 @@ from torchvision.transforms import v2
 class Sam3Processor:
     """ """
 
-    def __init__(self, model, resolution=1008, device="cuda", confidence_threshold=0.5):
+    def __init__(self, model, resolution=1008, device="cuda", confidence_threshold=0.5, amp_dtype=None):
         self.model = model
         self.resolution = resolution
         self.device = device
+        self.amp_dtype = amp_dtype
         self.transform = v2.Compose(
             [
                 v2.ToDtype(torch.uint8, scale=True),
@@ -56,7 +57,13 @@ class Sam3Processor:
 
         state["original_height"] = height
         state["original_width"] = width
-        state["backbone_out"] = self.model.backbone.forward_image(image)
+        autocast_ctx = (
+            torch.autocast(device_type=self.device, dtype=self.amp_dtype)
+            if self.amp_dtype is not None
+            else torch.autocast(device_type=self.device, enabled=False)
+        )
+        with autocast_ctx:
+            state["backbone_out"] = self.model.backbone.forward_image(image)
         inst_interactivity_en = self.model.inst_interactive_predictor is not None
         if inst_interactivity_en and "sam2_backbone_out" in state["backbone_out"]:
             sam2_backbone_out = state["backbone_out"]["sam2_backbone_out"]
@@ -116,7 +123,13 @@ class Sam3Processor:
         if "backbone_out" not in state:
             raise ValueError("You must call set_image before set_text_prompt")
 
-        text_outputs = self.model.backbone.forward_text([prompt], device=self.device)
+        autocast_ctx = (
+            torch.autocast(device_type=self.device, dtype=self.amp_dtype)
+            if self.amp_dtype is not None
+            else torch.autocast(device_type=self.device, enabled=False)
+        )
+        with autocast_ctx:
+            text_outputs = self.model.backbone.forward_text([prompt], device=self.device)
         # will erase the previous text prompt if any
         state["backbone_out"].update(text_outputs)
         if "geometric_prompt" not in state:
@@ -181,12 +194,18 @@ class Sam3Processor:
 
     @torch.inference_mode()
     def _forward_grounding(self, state: Dict):
-        outputs = self.model.forward_grounding(
-            backbone_out=state["backbone_out"],
-            find_input=self.find_stage,
-            geometric_prompt=state["geometric_prompt"],
-            find_target=None,
+        autocast_ctx = (
+            torch.autocast(device_type=self.device, dtype=self.amp_dtype)
+            if self.amp_dtype is not None
+            else torch.autocast(device_type=self.device, enabled=False)
         )
+        with autocast_ctx:
+            outputs = self.model.forward_grounding(
+                backbone_out=state["backbone_out"],
+                find_input=self.find_stage,
+                geometric_prompt=state["geometric_prompt"],
+                find_target=None,
+            )
 
         out_bbox = outputs["pred_boxes"]
         out_logits = outputs["pred_logits"]
